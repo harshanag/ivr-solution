@@ -10,6 +10,9 @@ import com.example.ivrsolution.service.HumourService;
 import com.example.ivrsolution.util.BuildUtils;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.ILoggerFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.PropertySource;
@@ -53,6 +56,8 @@ public class HumourAppController {
     @Value( "${api.test.hello.world.url}" )
     private String helloWorldUrl;
 
+    private static Logger logger = LoggerFactory.getLogger(HumourAppController.class);
+
     @PostMapping("/")
     public void initiateFlow(@RequestBody CallbackData callbackData){
 
@@ -61,17 +66,17 @@ public class HumourAppController {
 
         //Basic Test Call
         try {
-            System.out.println("Starting test request");
+            logger.info("Starting test request");
             IVRResponse response = callHelloWorldEndpoint(callbackData, welcomeFile);
             nextStep = response.code;
-            System.out.println("Ending test request");
+            logger.info("Ending test request");
         }catch (Exception e){
 
         }
         //TODO Check if the current caller is an existing customer, and initiate the correct flow
         boolean isNewCustomer = false;
         if(isNewCustomer){
-
+            initiateNewCustomerFlow(callbackData);
         }else{
             initiateExistingCustomerFlow(callbackData);
         }
@@ -85,6 +90,7 @@ public class HumourAppController {
      */
     public void initiateNewCustomerFlow(CallbackData callbackData){
 
+        //Check if the existing customer
     }
 
     /**
@@ -110,7 +116,7 @@ public class HumourAppController {
             IVRResponse welcomeExistingCustomerResponse = playWelcomeExistingCustomerMessage(callbackData);
             String nextStep ="";
             do{ // Playing the Main Menu
-                System.out.println("Starting Existing Customer Flow");
+                logger.info("Starting Existing Customer Flow");
                 PlayFileAwaitInputResponse mainMenuResponse = playExistingCustomerNavigationMenu(callbackData);
                 nextStep = mainMenuResponse.data.input;
 
@@ -223,7 +229,7 @@ public class HumourAppController {
         if(ResponseCodesEnum.REQ_SUCCESS.errorCode.equals(playFileResponse.code)){
             return callPlayFileAndAwaitInputAPI(callbackData,listenToJokesFile);
         }else{
-            System.out.println(getErrorMessage(playFileResponse));
+            logger.error(getErrorMessage(playFileResponse));
             return null;
         }
     }
@@ -243,7 +249,7 @@ public class HumourAppController {
         if(ResponseCodesEnum.REQ_SUCCESS.errorCode.equals(playFileResponse.code)){
             return callPlayFileAndAwaitInputAPI(callbackData,listenToJokesFile);
         }else{
-            System.out.println(getErrorMessage(playFileResponse));
+            logger.error(getErrorMessage(playFileResponse));
             return null;
         }
     }
@@ -273,7 +279,7 @@ public class HumourAppController {
             callPlayFileAPI(callbackData,AudioFiles.TRY_AGAIN_LATER.fileName);
             hangUp(callbackData);
         } else{
-            System.out.println(getErrorMessage(response));
+            logger.error(getErrorMessage(response));
         }
     }
 
@@ -288,13 +294,14 @@ public class HumourAppController {
         headers.add(HttpHeadersEnum.DATA.value, mapper.writeValueAsString(callbackData));
         HttpEntity<String> request = new HttpEntity<String>(headers);
         IVRResponse response = restTemplate.postForObject(hangUpUrl, request, IVRResponse.class);
-        System.out.println(response.code);
+        logger.info(response.code);
     }
 
     public IVRResponse callHelloWorldEndpoint(CallbackData callbackData, String fileName) throws JsonProcessingException {
         RestTemplate restTemplate = new RestTemplate();
         HttpHeaders headers = new HttpHeaders();
         IVRResponse ivrResponse;
+        logger.info("Calling Helloworld method");
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.add("X-IBM-Client-Id","984eca56-cc2e-48d2-aff4-d631c21a9292");
         headers.add("content-type","application/json");
@@ -304,8 +311,9 @@ public class HumourAppController {
         HttpEntity<String> request = new HttpEntity<String>(headers);
 
         String response = restTemplate.postForObject(helloWorldUrl, request, String.class);
-        System.out.println(response);
+        logger.info(response);
         ivrResponse = mapper.readValue(response, IVRResponse.class);
+        logger.info("End Calling Helloworld method");
         return ivrResponse;
     }
 
@@ -315,7 +323,7 @@ public class HumourAppController {
         HttpHeaders headers = BuildUtils.buildHttpHeadersForPlayFileAndAwaitInput(callbackData, fileName);
         HttpEntity<String> request = new HttpEntity<String>(headers);
         String response = restTemplate.postForObject(playAndAwaitInputUrl, request, String.class);
-        System.out.println(response);
+        logger.info(response);
         ivrResponse = mapper.readValue(response, IVRResponse.class);
         return ivrResponse;
     }
@@ -325,7 +333,7 @@ public class HumourAppController {
         HttpHeaders headers = BuildUtils.buildHttpHeadersForPlayFileAndAwaitInput(callbackData, fileName);
         HttpEntity<String> request = new HttpEntity<String>(headers);
         String response = restTemplate.postForObject(playAndAwaitInputUrl, request, String.class);
-        System.out.println(response);
+        logger.info(response);
         playFileAwaitInputResponse = mapper.readValue(response, PlayFileAwaitInputResponse.class);
         return playFileAwaitInputResponse;
     }
